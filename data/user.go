@@ -12,21 +12,27 @@ type User struct {
    AccountKey string
  }
 
-type UserDb struct {
+type UserDb interface {
+  Close() error
+  Authenticate(string) (User, error)
+  RecordUsage(User)
+}
+
+type SqlUserDb struct {
   db *sql.DB
 }
 
 func NewUserDb() (UserDb, error) {
   db, err := sql.Open("postgres", "user=geoff dbname=timezone sslmode=disable")
   err = db.Ping()
-  return UserDb{db}, err
+  return SqlUserDb{db}, err
 }
 
-func (udb *UserDb) Close() error {
+func (udb SqlUserDb) Close() error {
   return udb.db.Close()
 }
 
-func (udb *UserDb) Authenticate(token string) (User, error) {
+func (udb SqlUserDb) Authenticate(token string) (User, error) {
   var id int
   var name string
   err:= udb.db.QueryRow("SELECT id, accountname FROM account WHERE accountkey = $1", token).Scan(&id, &name)
@@ -43,7 +49,7 @@ func (udb *UserDb) Authenticate(token string) (User, error) {
   }
 }
 
-func (udb *UserDb) RecordUsage(u *User) {
+func (udb SqlUserDb) RecordUsage(u User) {
   log.Printf("User '%s:%d' used the service", u.Name, u.Id)
   _, err := udb.db.Exec("INSERT INTO account_usage (account_id) VALUES($1)", u.Id)
   if nil != err {

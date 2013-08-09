@@ -6,15 +6,27 @@ import (
   "log"
   "time"
   "github.com/geofflane/tzone-go/util"
+  "github.com/geofflane/tzone-go/data"
 )
 
 const TimeFormat = "2006-01-02T15:04:05.9999"
 
+var userDb data.UserDb
 func main() {
-  http.Handle("/convertCurrent", WithSecurityCheck{http.HandlerFunc(currentTime)})
-  http.Handle("/convertTime", WithSecurityCheck{http.HandlerFunc(convertBetween)})
+  var err error
+  userDb, err = data.NewUserDb()
+  if nil != err {
+    log.Fatal("Couldn't connect to userDb: %s", err)
+    return
+  }
 
-  defer Cleanup()
+  http.Handle("/convertCurrent", WithSecurityCheck{userDb, http.HandlerFunc(currentTime)})
+  http.Handle("/convertTime", WithSecurityCheck{userDb, http.HandlerFunc(convertBetween)})
+
+  defer func() {
+    userDb.Close()
+  }()
+
   log.Fatal(http.ListenAndServe(":8080", nil))
 }
 
