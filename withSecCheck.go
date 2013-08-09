@@ -18,11 +18,7 @@ func (sc WithSecurityCheck) ServeHTTP(w http.ResponseWriter, r *http.Request) {
     return
   }
 
-  go sc.RecordUsage(u)
+  go sc.userDb.RecordUsage(u)
   sc.f.ServeHTTP(w, r)
-}
-
-func (sc WithSecurityCheck) RecordUsage(u data.User) {
-  sc.userDb.RecordUsage(u)
 }
 
