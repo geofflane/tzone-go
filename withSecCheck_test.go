@@ -34,37 +34,17 @@ func (db *TestUserDb) RecordUsage(u data.User) {
   db.Done <- true
 }
 
-
-
-func TestPassingGoodTokenCallsBaseMethod(t *testing.T) {
-  called := false
-  doneChan := make(chan bool)
-
-  w := httptest.NewRecorder()
-  req, _ := http.NewRequest("GET", "http://example.com?token=test", nil)
-  userDb := &TestUserDb{map[string]data.User{"test": data.User{}}, 0, doneChan}
-
-  secCheck := WithSecurityCheck{userDb, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { called = true })}
-  secCheck.ServeHTTP(w, req)
-
-  waitForDone(doneChan)
-
-  assert.True(t, called, "handler was not called")
-  assert.Equal(t, 1, userDb.Usage)
+func buildHttpParams() (w http.ResponseWriter, r *http.Request) {
+  w = httptest.NewRecorder()
+  r, _ = http.NewRequest("GET", "http://example.com?token=test", nil)
+  return
 }
 
-func TestPassingBadTokenDoesNotCallBaseMethod(t *testing.T) {
-  called := false
 
-  w := httptest.NewRecorder()
-  req, _ := http.NewRequest("GET", "http://example.com?token=test", nil)
-  userDb := &TestUserDb{map[string]data.User{"different": data.User{}}, 0, nil}
-
-  secCheck := WithSecurityCheck{userDb, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { called = true })}
-  secCheck.ServeHTTP(w, req)
-
-  assert.False(t, called, "handler was not supposed to be called")
-  assert.Equal(t, 0, userDb.Usage)
+func buildHandlerFunc(called *bool) http.HandlerFunc {
+  return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+    *called = true
+  })
 }
 
 func waitForDone(c chan bool) {
@@ -78,3 +58,34 @@ func waitForDone(c chan bool) {
     println("Done")
   }
 }
+
+func TestPassingGoodTokenCallsBaseMethod(t *testing.T) {
+  var called bool
+  doneChan := make(chan bool)
+  defer close(doneChan)
+
+  w, req := buildHttpParams()
+  userDb := &TestUserDb{map[string]data.User{"test": data.User{}}, 0, doneChan}
+
+  secCheck := WithSecurityCheck{userDb, buildHandlerFunc(&called)}
+  secCheck.ServeHTTP(w, req)
+
+  waitForDone(doneChan)
+
+  assert.True(t, called, "handler was not called")
+  assert.Equal(t, 1, userDb.Usage)
+}
+
+func TestPassingBadTokenDoesNotCallBaseMethod(t *testing.T) {
+  var called bool
+
+  w, req := buildHttpParams()
+  userDb := &TestUserDb{map[string]data.User{"different": data.User{}}, 0, nil}
+
+  secCheck := WithSecurityCheck{userDb, buildHandlerFunc(&called)}
+  secCheck.ServeHTTP(w, req)
+
+  assert.False(t, called, "handler was not supposed to be called")
+  assert.Equal(t, 0, userDb.Usage)
+}
+

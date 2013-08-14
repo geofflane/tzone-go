@@ -16,7 +16,7 @@ func main() {
   var err error
   userDb, err = data.NewUserDb()
   if nil != err {
-    log.Fatal("Couldn't connect to userDb: %s", err)
+    log.Fatal("Couldn't connect to userDb ", err)
     return
   }
 
