@@ -18,20 +18,26 @@ type UserDb interface {
   RecordUsage(User)
 }
 
+// Implements the UserDB interface
 type SqlUserDb struct {
   db *sql.DB
 }
 
+// Construct a new UserDB, connect to the database, etc
+// It returns a connected UsetDB or an error if there is a problem connecting
 func NewUserDb() (UserDb, error) {
   db, err := sql.Open("postgres", "user=geoff dbname=timezone sslmode=disable")
   err = db.Ping()
   return &SqlUserDb{db}, err
 }
 
+// Close the DB connection
 func (udb *SqlUserDb) Close() error {
   return udb.db.Close()
 }
 
+// Authenticate a user
+// Returns a User or an error if no user can be found with the token
 func (udb *SqlUserDb) Authenticate(token string) (User, error) {
   var id int
   var name string
@@ -49,6 +55,7 @@ func (udb *SqlUserDb) Authenticate(token string) (User, error) {
   }
 }
 
+// Record the fact that the user used the service
 func (udb *SqlUserDb) RecordUsage(u User) {
   log.Printf("User '%s:%d' used the service", u.Name, u.Id)
   _, err := udb.db.Exec("INSERT INTO account_usage (account_id) VALUES($1)", u.Id)
